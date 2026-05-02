@@ -239,8 +239,23 @@
       envChart.data.datasets[1].data = recent.map(f => parseFloat(f.field3)||0);
       envChart.update();
 
-      document.getElementById('status').textContent =
-        'Last updated: ' + new Date(latest.created_at).toLocaleTimeString();
+      const lastTime = new Date(latest.created_at);
+      const now = new Date();
+      const diffMinutes = (now - lastTime) / 1000 / 60;
+
+      if (diffMinutes > 2) {
+       document.getElementById('status').textContent = '🔴 ESP32 is OFFLINE — last seen at ' + lastTime.toLocaleTimeString();
+       document.getElementById('dust').textContent = '--';
+       document.getElementById('temp').textContent = '--';
+       document.getElementById('hum').textContent  = '--';
+       document.getElementById('fan').textContent  = '--';
+       document.getElementById('aqi').textContent  = '--';
+       document.getElementById('aqi').className    = 'value';
+       document.getElementById('aqiSub').textContent = 'Device offline';
+        } else {
+         document.getElementById('status').textContent = '🟢 Last updated: ' + lastTime.toLocaleTimeString();
+        }
+
 
     } catch(e) {
       document.getElementById('status').textContent = 'Error fetching data — check connection';
