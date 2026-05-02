@@ -11,13 +11,22 @@
     header { background: #1e293b; padding: 20px; text-align: center; border-bottom: 2px solid #334155; }
     header h1 { font-size: 1.8em; color: #38bdf8; }
     header p  { color: #94a3b8; font-size: 0.9em; margin-top: 4px; }
-    .cards { display: flex; flex-wrap: wrap; gap: 16px; padding: 24px; justify-content: center; }
-    .card { background: #1e293b; border-radius: 16px; padding: 24px; min-width: 180px; flex: 1; max-width: 220px; text-align: center; border: 1px solid #334155; }
+    h2 { color: #94a3b8; font-size: 1em; padding: 24px 24px 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .cards { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 24px; justify-content: center; }
+    .card { background: #1e293b; border-radius: 16px; padding: 24px; min-width: 160px; flex: 1; max-width: 200px; text-align: center; border: 1px solid #334155; }
     .card .label { color: #94a3b8; font-size: 0.85em; margin-bottom: 8px; }
-    .card .value { font-size: 2.2em; font-weight: bold; color: #38bdf8; }
+    .card .value { font-size: 2em; font-weight: bold; color: #38bdf8; }
     .card .unit  { color: #64748b; font-size: 0.8em; margin-top: 4px; }
     .fan-on  { color: #22c55e !important; }
     .fan-off { color: #ef4444 !important; }
+    .good    { color: #22c55e !important; }
+    .moderate{ color: #f59e0b !important; }
+    .bad     { color: #ef4444 !important; }
+    .reports { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 24px 16px; }
+    .report-card { background: #1e293b; border-radius: 16px; padding: 20px; flex: 1; min-width: 200px; border: 1px solid #334155; text-align: center; }
+    .report-card .rlabel { color: #94a3b8; font-size: 0.85em; margin-bottom: 8px; }
+    .report-card .rvalue { font-size: 1.6em; font-weight: bold; color: #a78bfa; }
+    .report-card .rsub   { color: #64748b; font-size: 0.8em; margin-top: 4px; }
     .charts { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 24px 24px; }
     .chart-box { background: #1e293b; border-radius: 16px; padding: 20px; flex: 1; min-width: 300px; border: 1px solid #334155; }
     .chart-box h3 { color: #94a3b8; font-size: 0.95em; margin-bottom: 16px; }
@@ -33,6 +42,8 @@
   <p><span class="dot"></span>Live data — updates every 15 seconds</p>
 </header>
 
+<!-- Live readings -->
+<h2>Live Readings</h2>
 <div class="cards">
   <div class="card">
     <div class="label">Dust Level</div>
@@ -54,8 +65,40 @@
     <div class="value" id="fan">--</div>
     <div class="unit">auto controlled</div>
   </div>
+  <div class="card">
+    <div class="label">Air Quality</div>
+    <div class="value" id="aqi">--</div>
+    <div class="unit" id="aqiSub"></div>
+  </div>
 </div>
 
+<!-- Reports -->
+<h2>Today's Reports</h2>
+<div class="reports">
+  <div class="report-card">
+    <div class="rlabel">Daily Average Dust</div>
+    <div class="rvalue" id="avgDust">--</div>
+    <div class="rsub">mg/m³</div>
+  </div>
+  <div class="report-card">
+    <div class="rlabel">Peak Dust Time</div>
+    <div class="rvalue" id="peakTime">--</div>
+    <div class="rsub" id="peakVal"></div>
+  </div>
+  <div class="report-card">
+    <div class="rlabel">Fan ON Time Today</div>
+    <div class="rvalue" id="fanTime">--</div>
+    <div class="rsub">minutes (estimated)</div>
+  </div>
+  <div class="report-card">
+    <div class="rlabel">Total Readings Today</div>
+    <div class="rvalue" id="totalReadings">--</div>
+    <div class="rsub">data points</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<h2>Charts</h2>
 <div class="charts">
   <div class="chart-box">
     <h3>Dust Level Over Time</h3>
@@ -70,11 +113,10 @@
 <div class="status" id="status">Fetching data...</div>
 
 <script>
-  const CHANNEL_ID  = "3366456";
-  const READ_API    = "B557M372XV9I4ZKN";
-  const URL = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API}&results=20`;
+  const CHANNEL_ID = "3366456";
+  const READ_API   = "B557M372XV9I4ZKN";
+  const URL = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API}&results=100`;
 
-  // Charts setup
   const dustChart = new Chart(document.getElementById('dustChart'), {
     type: 'line',
     data: {
@@ -92,7 +134,7 @@
       responsive: true,
       plugins: { legend: { labels: { color: '#94a3b8' } } },
       scales: {
-        x: { ticks: { color: '#64748b' }, grid: { color: '#334155' } },
+        x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: '#334155' } },
         y: { ticks: { color: '#64748b' }, grid: { color: '#334155' } }
       }
     }
@@ -103,29 +145,15 @@
     data: {
       labels: [],
       datasets: [
-        {
-          label: 'Temperature (°C)',
-          data: [],
-          borderColor: '#f97316',
-          backgroundColor: 'rgba(249,115,22,0.1)',
-          fill: true,
-          tension: 0.4
-        },
-        {
-          label: 'Humidity (%)',
-          data: [],
-          borderColor: '#22c55e',
-          backgroundColor: 'rgba(34,197,94,0.1)',
-          fill: true,
-          tension: 0.4
-        }
+        { label: 'Temperature (°C)', data: [], borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.1)', fill: true, tension: 0.4 },
+        { label: 'Humidity (%)',     data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',  fill: true, tension: 0.4 }
       ]
     },
     options: {
       responsive: true,
       plugins: { legend: { labels: { color: '#94a3b8' } } },
       scales: {
-        x: { ticks: { color: '#64748b' }, grid: { color: '#334155' } },
+        x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: '#334155' } },
         y: { ticks: { color: '#64748b' }, grid: { color: '#334155' } }
       }
     }
@@ -136,20 +164,35 @@
     return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
   }
 
+  function getAQI(dust) {
+    if (dust < 0.025) return { label: 'Good',     cls: 'good' };
+    if (dust < 0.10)  return { label: 'Moderate', cls: 'moderate' };
+    return               { label: 'Bad',      cls: 'bad' };
+  }
+
+  function isToday(ts) {
+    const d = new Date(ts);
+    const n = new Date();
+    return d.getDate() === n.getDate() && d.getMonth() === n.getMonth();
+  }
+
   async function fetchData() {
     try {
-      const res  = await fetch(URL);
-      const data = await res.json();
+      const res   = await fetch(URL);
+      const data  = await res.json();
       const feeds = data.feeds;
       if (!feeds || feeds.length === 0) return;
 
-      const latest = feeds[feeds.length - 1];
+      // Filter today only
+      const today = feeds.filter(f => isToday(f.created_at));
+
+      const latest  = feeds[feeds.length - 1];
       const dustVal = parseFloat(latest.field1) || 0;
       const tempVal = parseFloat(latest.field2) || 0;
       const humVal  = parseFloat(latest.field3) || 0;
       const fanVal  = parseInt(latest.field4)   || 0;
 
-      // Update cards
+      // Live cards
       document.getElementById('dust').textContent = dustVal.toFixed(4);
       document.getElementById('temp').textContent = tempVal.toFixed(1);
       document.getElementById('hum').textContent  = humVal.toFixed(1);
@@ -157,32 +200,55 @@
       fanEl.textContent = fanVal === 1 ? 'ON' : 'OFF';
       fanEl.className = 'value ' + (fanVal === 1 ? 'fan-on' : 'fan-off');
 
-      // Update charts
-      const labels = feeds.map(f => formatTime(f.created_at));
-      const dusts  = feeds.map(f => parseFloat(f.field1) || 0);
-      const temps  = feeds.map(f => parseFloat(f.field2) || 0);
-      const hums   = feeds.map(f => parseFloat(f.field3) || 0);
+      const aqi = getAQI(dustVal);
+      const aqiEl = document.getElementById('aqi');
+      aqiEl.textContent = aqi.label;
+      aqiEl.className = 'value ' + aqi.cls;
+      document.getElementById('aqiSub').textContent =
+        dustVal < 0.025 ? 'Clean air' : dustVal < 0.10 ? 'Acceptable' : 'Purifier needed';
 
+      // Reports
+      if (today.length > 0) {
+        // Daily average
+        const avgDust = today.reduce((s,f) => s + (parseFloat(f.field1)||0), 0) / today.length;
+        document.getElementById('avgDust').textContent = avgDust.toFixed(4);
+
+        // Peak dust time
+        const peak = today.reduce((max, f) => parseFloat(f.field1||0) > parseFloat(max.field1||0) ? f : max, today[0]);
+        document.getElementById('peakTime').textContent = formatTime(peak.created_at);
+        document.getElementById('peakVal').textContent  = parseFloat(peak.field1).toFixed(4) + ' mg/m³';
+
+        // Fan ON time (each reading = 15s interval, fan ON = 0.25 min)
+        const fanOnCount = today.filter(f => parseInt(f.field4) === 1).length;
+        const fanMinutes = ((fanOnCount * 15) / 60).toFixed(1);
+        document.getElementById('fanTime').textContent = fanMinutes;
+
+        // Total readings
+        document.getElementById('totalReadings').textContent = today.length;
+      }
+
+      // Charts — last 50 points
+      const recent = feeds.slice(-50);
+      const labels = recent.map(f => formatTime(f.created_at));
       dustChart.data.labels = labels;
-      dustChart.data.datasets[0].data = dusts;
+      dustChart.data.datasets[0].data = recent.map(f => parseFloat(f.field1)||0);
       dustChart.update();
 
       envChart.data.labels = labels;
-      envChart.data.datasets[0].data = temps;
-      envChart.data.datasets[1].data = hums;
+      envChart.data.datasets[0].data = recent.map(f => parseFloat(f.field2)||0);
+      envChart.data.datasets[1].data = recent.map(f => parseFloat(f.field3)||0);
       envChart.update();
 
       document.getElementById('status').textContent =
         'Last updated: ' + new Date(latest.created_at).toLocaleTimeString();
 
     } catch(e) {
-      document.getElementById('status').textContent = 'Error fetching data';
+      document.getElementById('status').textContent = 'Error fetching data — check connection';
     }
   }
 
   fetchData();
   setInterval(fetchData, 15000);
 </script>
-
 </body>
 </html>
